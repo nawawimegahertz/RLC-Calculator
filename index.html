@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kalkulator Arus dan Impendasi RLC</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
         body {
             font-family: 'Poppins', sans-serif;
@@ -164,6 +165,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script>
         let currentLoad = 0;
         let loads = [];
@@ -202,22 +204,49 @@
         }
 
         function calculateResults() {
-            let R_total = 0, ZL_total = 0, ZC_total = 0;
+            const voltage = parseFloat(document.getElementById('voltage').value);
+            const frequency = parseFloat(document.getElementById('frequency').value);
+            let totalImpedance = 0;
+            let totalCurrent = 0;
 
-            for (const load of loads) {
-                R_total += load.R;
-                ZL_total += 2 * Math.PI * parseFloat(document.getElementById('frequency').value) * load.L;
-                ZC_total += 1 / (2 * Math.PI * parseFloat(document.getElementById('frequency').value) * load.C);
+            if (circuitType === 'seri') {
+                let ZReal = 0;
+                let ZImaginary = 0;
+
+                for (let load of loads) {
+                    ZReal += load.R; // Total resistance
+                    ZImaginary += (2 * Math.PI * frequency * load.L) - (1 / (2 * Math.PI * frequency * load.C)); // Total reactance
+                }
+
+                totalImpedance = Math.sqrt(ZReal * ZReal + ZImaginary * ZImaginary);
+                totalCurrent = voltage / totalImpedance; // Ohm's Law
+            } else {
+                let total1OverZ = 0;
+
+                for (let load of loads) {
+                    const ZR = load.R; // Resistive impedance
+                    const ZL = (2 * Math.PI * frequency * load.L); // Inductive reactance
+                    const ZC = (1 / (2 * Math.PI * frequency * load.C)); // Capacitive reactance
+
+                    const Z = 1 / (1 / ZR + 1 / ZL + 1 / ZC); // Total impedance for parallel circuit
+                    total1OverZ += (1 / Z);
+                }
+
+                totalImpedance = 1 / total1OverZ;
+                totalCurrent = voltage / totalImpedance; // Ohm's Law
             }
 
-            let Z_total = Math.sqrt(Math.pow(R_total, 2) + Math.pow(ZL_total - ZC_total, 2));
-            let I_total = parseFloat(document.getElementById('voltage').value) / Z_total;
+            document.getElementById('total-impedance').textContent = 'Impendansi total (Z): ' + totalImpedance.toFixed(2) + ' Ohm';
+            document.getElementById('total-current').textContent = 'Arus total: ' + totalCurrent.toFixed(2) + ' Ampere';
 
-            document.getElementById('total-impedance').textContent = 'Impendasi total (Z): ' + Z_total.toFixed(2) + ' Ω';
-            document.getElementById('total-current').textContent = 'Arus total (I): ' + I_total.toFixed(2) + ' Ampere';
-
-            // Auto-scroll to the top after calculation
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Use SweetAlert2 to show results
+            Swal.fire({
+                title: 'Hasil Perhitungan',
+                html: `<p>Impendansi total (Z): <strong>${totalImpedance.toFixed(2)} Ohm</strong></p>
+                       <p>Arus total: <strong>${totalCurrent.toFixed(2)} Ampere</strong></p>`,
+                icon: 'info',
+                confirmButtonText: 'OK'
+            });
         }
     </script>
 </body>
