@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Arus dan Impendasi RLC</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        h1, h2, h4 {
+            font-weight: bold;
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #d45769 0%, #e69d45 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+        }
+        .floating-card {
+            background-color: #ffffff;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            transition: transform 0.3s ease;
+        }
+        .floating-card:hover {
+            transform: translateY(-5px);
+        }
+        .result-card {
+            margin-top: 30px;
+            background-color: #308695;
+            color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .form-label {
+            font-weight: 500;
+        }
+        .btn {
+            border-radius: 25px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary {
+            background-color: #4b6cb7;
+            border-color: #4b6cb7;
+        }
+        .btn-primary:hover {
+            background-color: #182848;
+            border-color: #182848;
+        }
+        .btn-secondary {
+            background-color: #f57c00;
+            border-color: #f57c00;
+        }
+        .btn-secondary:hover {
+            background-color: #ef6c00;
+            border-color: #ef6c00;
+        }
+        .btn-success {
+            background-color: #2ecc71;
+            border-color: #2ecc71;
+        }
+        .btn-success:hover {
+            background-color: #27ae60;
+            border-color: #27ae60;
+        }
+        #results p {
+            font-size: 1.2rem;
+        }
+        .unit-dropdown {
+            display: flex;
+            align-items: center;
+        }
+        .unit-dropdown select {
+            margin-left: 10px;
+            width: 70px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center gradient-text">Kalkulator Arus dan Impendasi RLC</h1>
+
+        <!-- Results section -->
+        <div id="results" class="result-card text-center">
+            <h2>Hasil</h2>
+            <p id="total-impedance">Impendansi total (Z): - Ohm</p>
+            <p id="total-current">Arus total: - Ampere</p>
+        </div>
+
+        <!-- Form for circuit type and number of loads -->
+        <div class="floating-card">
+            <h4>Langkah 1: Tipe Rangkaian</h4>
+            <div class="mb-3">
+                <label for="circuitType" class="form-label">Tipe Rangkaian</label>
+                <select class="form-select" id="circuitType">
+                    <option value="seri">Seri</option>
+                    <option value="paralel">Paralel</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="loadCount" class="form-label">Jumlah beban</label>
+                <input type="number" class="form-control" id="loadCount" min="1" value="1">
+            </div>
+            <button class="btn btn-primary" onclick="setupLoadForm()">Selanjutnya</button>
+        </div>
+
+        <!-- Form for RLC load values -->
+        <div id="loadInput" class="floating-card d-none">
+            <h4 id="load-title">Beban ke-1</h4>
+            <div class="mb-3 unit-dropdown">
+                <label for="resistance" class="form-label">Resistansi (R)</label>
+                <input type="number" class="form-control" id="resistance" step="0.01">
+                <select id="resistanceUnit">
+                    <option value="1">Ohm</option>
+                    <option value="1000">kΩ</option>
+                </select>
+            </div>
+            <div class="mb-3 unit-dropdown">
+                <label for="inductance" class="form-label">Induktansi (L)</label>
+                <input type="number" class="form-control" id="inductance" step="0.01">
+                <select id="inductanceUnit">
+                    <option value="0.000001">µH</option>
+                    <option value="0.001">mH</option>
+                    <option value="1">H</option>
+                </select>
+            </div>
+            <div class="mb-3 unit-dropdown">
+                <label for="capacitance" class="form-label">Kapasitansi (C)</label>
+                <input type="number" class="form-control" id="capacitance" step="0.01">
+                <select id="capacitanceUnit">
+                    <option value="0.000001">µF</option>
+                    <option value="0.001">mF</option>
+                </select>
+            </div>
+            <button class="btn btn-secondary" onclick="submitLoad()">Submit Beban</button>
+        </div>
+
+        <!-- Form for voltage and frequency -->
+        <div id="sourceInput" class="floating-card d-none">
+            <h4>Langkah 3: Masukkan Tegangan & Frekuensi</h4>
+            <div class="mb-3">
+                <label for="voltage" class="form-label">Tegangan (V)</label>
+                <input type="number" class="form-control" id="voltage" step="0.01">
+            </div>
+            <div class="mb-3">
+                <label for="frequency" class="form-label">Frekuensi (Hz)</label>
+                <input type="number" class="form-control" id="frequency" step="0.01">
+            </div>
+            <button class="btn btn-success" onclick="calculateResults()">Hitung!</button>
+        </div>
+    </div>
+
+    <script>
+        let currentLoad = 0;
+        let loads = [];
+        let circuitType = '';
+        let loadCount = 0;
+
+        function setupLoadForm() {
+            circuitType = document.getElementById('circuitType').value;
+            loadCount = parseInt(document.getElementById('loadCount').value);
+
+            document.getElementById('loadInput').classList.remove('d-none');
+            updateLoadForm();
+        }
+
+        function updateLoadForm() {
+            document.getElementById('load-title').textContent = 'Beban ke-' + (currentLoad + 1);
+            document.getElementById('resistance').value = '';
+            document.getElementById('inductance').value = '';
+            document.getElementById('capacitance').value = '';
+        }
+
+        function submitLoad() {
+            const R = parseFloat(document.getElementById('resistance').value) * parseFloat(document.getElementById('resistanceUnit').value);
+            const L = parseFloat(document.getElementById('inductance').value) * parseFloat(document.getElementById('inductanceUnit').value);
+            const C = parseFloat(document.getElementById('capacitance').value) * parseFloat(document.getElementById('capacitanceUnit').value);
+
+            loads.push({ R, L, C });
+
+            currentLoad++;
+            if (currentLoad < loadCount) {
+                updateLoadForm();
+            } else {
+                document.getElementById('loadInput').classList.add('d-none');
+                document.getElementById('sourceInput').classList.remove('d-none');
+            }
+        }
+
+        function calculateResults() {
+            let R_total = 0, ZL_total = 0, ZC_total = 0;
+
+            for (const load of loads) {
+                R_total += load.R;
+                ZL_total += 2 * Math.PI * parseFloat(document.getElementById('frequency').value) * load.L;
+                ZC_total += 1 / (2 * Math.PI * parseFloat(document.getElementById('frequency').value) * load.C);
+            }
+
+            let Z_total = Math.sqrt(Math.pow(R_total, 2) + Math.pow(ZL_total - ZC_total, 2));
+            let I_total = parseFloat(document.getElementById('voltage').value) / Z_total;
+
+            document.getElementById('total-impedance').textContent = 'Impendasi total (Z): ' + Z_total.toFixed(2) + ' Ω';
+            document.getElementById('total-current').textContent = 'Arus total (I): ' + I_total.toFixed(2) + ' Ampere';
+
+            // Auto-scroll to the top after calculation
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
