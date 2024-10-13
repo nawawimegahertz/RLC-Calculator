@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -105,25 +105,20 @@
         <h1 class="gradient-text">Kalkulator Arus dan Impedansi RLC</h1>
 
         <!-- Progress Indicator -->
-        <div id="steps">
-            <span id="step1" class="active">Tipe Rangkaian</span>
-            <span id="step2">Input Beban</span>
-            <span id="step3">Tegangan & Frekuensi</span>
+        <div class="progress-indicator">
+            <span id="step1" class="step active bold">Tipe Rangkaian</span>
+            <span id="step2" class="step">Jumlah Beban</span>
+            <span id="step3" class="step">Tegangan dan Frekuensi</span>
+            <span id="step4" class="step">Hasil RLC</span>
         </div>
+
         
         <!-- Progress Bar -->
         <progress id="progressBar" value="0" max="100" style="width: 100%; height: 20px; margin-bottom: 20px;"></progress>
 
-        <!-- Results section -->
-        <div id="results" class="result-card">
-            <h2>Hasil</h2>
-            <p id="total-impedance">Impendansi total (Z): - Ohm</p>
-            <p id="total-current">Arus total: - Ampere</p>
-        </div>
-
-        <!-- Form for circuit type and number of loads -->
-        <div class="floating-card">
-            <h4>Langkah 1: Tipe Rangkaian</h4>
+        <!-- Form for circuit type -->
+        <div class="floating-card" id="circuitTypeCard">
+            <h4>Tipe Rangkaian</h4>
             <div class="mb-3">
                 <label for="circuitType" class="form-label">Tipe Rangkaian</label>
                 <select class="form-select" id="circuitType">
@@ -171,7 +166,7 @@
 
         <!-- Form for voltage and frequency -->
         <div id="sourceInput" class="floating-card d-none">
-            <h4>Langkah 3: Masukkan Tegangan & Frekuensi</h4>
+            <h4>Masukkan Tegangan & Frekuensi</h4>
             <div class="mb-3">
                 <label for="voltage" class="form-label">Tegangan (V)</label>
                 <input type="number" class="form-control" id="voltage" step="0.01" placeholder="Masukkan tegangan">
@@ -180,124 +175,144 @@
                 <label for="frequency" class="form-label">Frekuensi (Hz)</label>
                 <input type="number" class="form-control" id="frequency" step="0.01" placeholder="Masukkan frekuensi">
             </div>
+            <button class="btn btn-secondary w-100" onclick="goBack()">Sebelumnya</button>
             <button class="btn btn-success w-100" onclick="calculate()">Hitung!</button>
+        </div>
+
+        <!-- Results section -->
+        <div id="summaryCard" class="floating-card d-none">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Ringkasan Beban</h5>
+                    <table id="summaryTable" class="table">
+                        <thead>
+                            <tr>
+                                <th>Resistansi</th>
+                                <th>Induktansi</th>
+                                <th>Kapasitansi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div id="resultsCard" class="floating-card d-none">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Hasil</h5>
+                    <p id="total-impedance"></p>
+                    <p id="total-current"></p>
+                </div>
+            </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script>
-        let loadCount = 0;
         let currentLoad = 1;
+        let loadCount = 3; // Ganti ini dengan jumlah beban yang diinginkan
         let loadData = [];
 
+        function nextStep(step) {
+            const steps = document.querySelectorAll('.step');
+
+            steps.forEach((s, index) => {
+                s.classList.remove('active'); // Remove active class from all steps
+                s.classList.remove('bold'); // Remove custom bold class from all steps
+                if (index < step) {
+                    s.classList.add('bold'); // Add custom bold class to completed steps
+                } else if (index === step - 1) {
+                    s.classList.add('bold'); // Add custom bold class to current step
+                }
+            });
+
+            // Logika untuk menampilkan dan menyembunyikan bagian yang sesuai
+            if (step === 1) {
+                document.getElementById('loadInput').classList.remove('d-none');
+                document.getElementById('circuitTypeCard').classList.add('d-none');
+                document.getElementById('progressBar').value = 33; // 33% untuk langkah 1
+            } else if (step === 2) {
+                document.getElementById('sourceInput').classList.remove('d-none');
+                document.getElementById('loadInput').classList.add('d-none');
+                document.getElementById('progressBar').value = 66; // 66% untuk langkah 2
+            } else if (step === 3) {
+                document.getElementById('resultsCard').classList.remove('d-none');
+                document.getElementById('sourceInput').classList.add('d-none');
+                document.getElementById('progressBar').value = 100; // 100% untuk langkah 3
+            }
+        }
+
+
         function setupLoadForm() {
-            loadCount = parseInt(document.getElementById('loadCount').value);
-            document.getElementById('loadInput').classList.remove('d-none');
-            document.getElementById('load-title').textContent = 'Beban ke-' + currentLoad;
-            
-            // Update progress bar
-            updateProgress();
+            loadCount = parseInt(document.getElementById("loadCount").value);
+            document.getElementById("load-title").innerText = "Beban ke-1";
+            nextStep(1);
         }
 
         function submitLoad() {
-            const resistance = parseFloat(document.getElementById('resistance').value) * parseFloat(document.getElementById('resistanceUnit').value);
-            const inductance = parseFloat(document.getElementById('inductance').value) * parseFloat(document.getElementById('inductanceUnit').value);
-            const capacitance = parseFloat(document.getElementById('capacitance').value) * parseFloat(document.getElementById('capacitanceUnit').value);
-
-            // Validasi input
-            if (isNaN(resistance) || isNaN(inductance) || isNaN(capacitance)) {
-                Swal.fire('Error', 'Mohon isi semua nilai dengan benar!', 'error');
-                return;
-            }
-
+            const resistance = parseFloat(document.getElementById("resistance").value) * parseFloat(document.getElementById("resistanceUnit").value);
+            const inductance = parseFloat(document.getElementById("inductance").value) * parseFloat(document.getElementById("inductanceUnit").value);
+            const capacitance = parseFloat(document.getElementById("capacitance").value) * parseFloat(document.getElementById("capacitanceUnit").value);
             loadData.push({ resistance, inductance, capacitance });
             currentLoad++;
 
-            if (currentLoad > loadCount) {
-                document.getElementById('loadInput').classList.add('d-none');
-                document.getElementById('sourceInput').classList.remove('d-none');
+            if (currentLoad <= loadCount) {
+                document.getElementById("load-title").innerText = "Beban ke-" + currentLoad;
+                document.getElementById("resistance").value = '';
+                document.getElementById("inductance").value = '';
+                document.getElementById("capacitance").value = '';
             } else {
-                document.getElementById('load-title').textContent = 'Beban ke-' + currentLoad;
-                // Reset input values
-                document.getElementById('resistance').value = '';
-                document.getElementById('inductance').value = '';
-                document.getElementById('capacitance').value = '';
+                nextStep(2);
+                displaySummary();
             }
-            updateProgress();
         }
-        
-        function updateProgress() {
-            const progressBar = document.getElementById('progressBar');
-            if (currentLoad === 1 && loadCount === 1) {
-                progressBar.value = 33; // 1/3
-            } else if (currentLoad > 1 && currentLoad < loadCount + 1) {
-                progressBar.value = 33 + (33 * (currentLoad - 1)); // Update untuk setiap langkah
-            } else {
-                progressBar.value = 100; // Selesai
-            }
-            
-            updateSteps(progressBar.value);
-        }
-        
-        function updateSteps(progress) {
-            const steps = [document.getElementById('step1'), document.getElementById('step2'), document.getElementById('step3')];
-            steps.forEach((step, index) => {
-                if (progress >= (index + 1) * 33) {
-                    step.classList.add('bold'); // Menjadikan langkah bold
-                } else {
-                    step.classList.remove('bold'); // Menghapus bold jika belum dicapai
-                }
+
+        function displaySummary() {
+            const tableBody = document.getElementById("summaryTableBody");
+            loadData.forEach(load => {
+                const row = document.createElement("tr");
+                row.innerHTML = `<td>${load.resistance.toFixed(2)} Ohm</td><td>${load.inductance.toFixed(2)} H</td><td>${load.capacitance.toFixed(2)} F</td>`;
+                tableBody.appendChild(row);
             });
         }
 
         function calculate() {
-            const voltage = parseFloat(document.getElementById('voltage').value);
-            const frequency = parseFloat(document.getElementById('frequency').value);
+            const voltage = parseFloat(document.getElementById("voltage").value);
+            const frequency = parseFloat(document.getElementById("frequency").value);
+            const totalResistance = loadData.reduce((sum, load) => sum + load.resistance, 0);
+            const totalInductance = loadData.reduce((sum, load) => sum + load.inductance, 0);
+            const totalCapacitance = loadData.reduce((sum, load) => sum + load.capacitance, 0);
 
-            if (isNaN(voltage) || isNaN(frequency)) {
-                Swal.fire('Error', 'Mohon masukkan nilai tegangan dan frekuensi dengan benar!', 'error');
-                return;
-            }
-
-            // Kalkulasi impedansi total dan arus
-            let totalResistance = 0;
-            let totalInductiveReactance = 0;
-            let totalCapacitiveReactance = 0;
-
-            loadData.forEach(load => {
-                totalResistance += load.resistance;
-                totalInductiveReactance += 2 * Math.PI * frequency * load.inductance;
-                totalCapacitiveReactance += 1 / (2 * Math.PI * frequency * load.capacitance);
-            });
-
-            const totalReactance = totalInductiveReactance - totalCapacitiveReactance;
-            const totalImpedance = Math.sqrt(totalResistance ** 2 + totalReactance ** 2);
+            // Contoh perhitungan impedansi dan arus (ini hanya contoh)
+            const totalImpedance = Math.sqrt(Math.pow(totalResistance, 2) + Math.pow(2 * Math.PI * frequency * totalInductance - 1 / (2 * Math.PI * frequency * totalCapacitance), 2));
             const totalCurrent = voltage / totalImpedance;
 
-            // Tampilkan hasil
-            document.getElementById('total-impedance').textContent = `Impendansi total (Z): ${totalImpedance.toFixed(2)} Ohm`;
-            document.getElementById('total-current').textContent = `Arus total: ${totalCurrent.toFixed(2)} Ampere`;
+            document.getElementById("total-impedance").innerText = `Impendansi total (Z): ${totalImpedance.toFixed(2)} Ohm`;
+            document.getElementById("total-current").innerText = `Arus total: ${totalCurrent.toFixed(2)} Ampere`;
 
-            // Tampilkan hasil
-            document.getElementById('results').classList.remove('d-none');
-
-            // Tampilkan alert berhasil
-            Swal.fire('Sukses', 'Perhitungan selesai!', 'success');
+            document.getElementById("resultsCard").classList.remove('d-none');
+            nextStep(3); // Pindah ke langkah hasil
         }
 
-
-        function resetForm() {
-            // Reset semua elemen form
-            document.getElementById('circuitType').value = 'seri';
-            document.getElementById('loadCount').value = 1;
-            loadData = [];
-            currentLoad = 1;
-            document.getElementById('load-title').textContent = 'Beban ke-1';
-            document.getElementById('loadInput').classList.add('d-none');
-            document.getElementById('sourceInput').classList.add('d-none');
-            document.getElementById('results').classList.add('d-none');
-            document.getElementById('total-impedance').textContent = 'Impendansi total (Z): - Ohm';
-            document.getElementById('total-current').textContent = 'Arus total: - Ampere';
+        function goBack() {
+            const currentCard = document.querySelector('.floating-card:not(.d-none)');
+            if (currentCard.id === 'sourceInput') {
+                nextStep(2); // Kembali ke input beban
+            } else if (currentCard.id === 'loadInput') {
+                currentLoad--;
+                if (currentLoad < 1) currentLoad = 1; // Pastikan tidak lebih kecil dari 1
+                document.getElementById("load-title").innerText = "Beban ke-" + currentLoad;
+                // Tampilkan form beban yang sesuai
+                const resistanceField = document.getElementById("resistance");
+                const inductanceField = document.getElementById("inductance");
+                const capacitanceField = document.getElementById("capacitance");
+                resistanceField.value = loadData[currentLoad - 1]?.resistance || '';
+                inductanceField.value = loadData[currentLoad - 1]?.inductance || '';
+                capacitanceField.value = loadData[currentLoad - 1]?.capacitance || '';
+            }
         }
+
     </script>
 </body>
-</html>
+</html
