@@ -133,31 +133,138 @@
 
     <script>
         let currentLoad = 1;
-        let loadCount;
+        let loadCount = 1;
         let loadData = [];
-
+        let circuitType = "seri"; // Default circuit type
+        
+        /**
+         * Mengatur form input berdasarkan tipe rangkaian.
+         */
         function setupLoadForm() {
-            const loadCountInput = document.getElementById('loadCount').value;
-            if (isNaN(loadCountInput) || loadCountInput <= 0) {
-                Swal.fire('Error', 'Jumlah beban harus berupa angka positif.', 'error');
-                return;
-            }
-            loadCount = parseInt(loadCountInput);
+            loadCount = parseInt(document.getElementById("loadCount").value);
+            circuitType = document.getElementById("circuitType").value;
+            document.getElementById("load-title").innerText = "Beban ke-1";
             nextStep(1);
         }
-
-        function nextStep(step) {
-            // Update UI steps and form display logic
-        }
-
-        function calculate() {
-            const voltage = parseFloat(document.getElementById('voltage').value);
-            const frequency = parseFloat(document.getElementById('frequency').value);
-            if (voltage <= 0 || frequency <= 0) {
-                Swal.fire('Error', 'Tegangan dan frekuensi harus positif.', 'error');
+        
+        /**
+         * Menangani data input beban (resistansi, induktansi, kapasitansi).
+         */
+        function submitLoad() {
+            const resistance = parseFloat(document.getElementById("resistance").value) || 0;
+            const inductance = parseFloat(document.getElementById("inductance").value) || 0;
+            const capacitance = parseFloat(document.getElementById("capacitance").value) || 0;
+        
+            if (resistance <= 0 && inductance <= 0 && capacitance <= 0) {
+                Swal.fire("Error", "Semua nilai beban tidak boleh nol atau negatif!", "error");
                 return;
             }
-            // Calculate impedance and current
+        
+            loadData.push({ resistance, inductance, capacitance });
+        
+            currentLoad++;
+            if (currentLoad <= loadCount) {
+                document.getElementById("load-title").innerText = "Beban ke-" + currentLoad;
+                document.getElementById("resistance").value = '';
+                document.getElementById("inductance").value = '';
+                document.getElementById("capacitance").value = '';
+            } else {
+                nextStep(2);
+                displaySummary();
+            }
+        }
+        
+        /**
+         * Menampilkan ringkasan input beban.
+         */
+        function displaySummary() {
+            const tableBody = document.getElementById("summaryTableBody");
+            tableBody.innerHTML = ""; // Clear previous data
+            loadData.forEach((load, index) => {
+                const row = document.createElement("tr");
+                row.innerHTML = `<td>Beban ${index + 1}</td>
+                                 <td>${load.resistance.toFixed(2)} Ohm</td>
+                                 <td>${load.inductance.toFixed(2)} H</td>
+                                 <td>${load.capacitance.toFixed(2)} F</td>`;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        /**
+         * Menghitung impedansi total dan arus sesuai hukum RLC.
+         */
+        function calculate() {
+            const voltage = parseFloat(document.getElementById("voltage").value) || 0;
+            const frequency = parseFloat(document.getElementById("frequency").value) || 0;
+        
+            if (voltage <= 0 || frequency <= 0) {
+                Swal.fire("Error", "Tegangan dan frekuensi harus lebih dari nol!", "error");
+                return;
+            }
+        
+            const omega = 2 * Math.PI * frequency;
+            let totalResistance = 0;
+            let totalReactanceInductive = 0;
+            let totalReactanceCapacitive = 0;
+        
+            if (circuitType === "seri") {
+                totalResistance = loadData.reduce((sum, load) => sum + load.resistance, 0);
+                totalReactanceInductive = loadData.reduce((sum, load) => sum + omega * load.inductance, 0);
+                totalReactanceCapacitive = loadData.reduce((sum, load) => sum + 1 / (omega * load.capacitance || Infinity), 0);
+            } else if (circuitType === "paralel") {
+                const inverseResistance = loadData.reduce((sum, load) => sum + 1 / (load.resistance || Infinity), 0);
+                const inverseInductive = loadData.reduce((sum, load) => sum + 1 / (omega * load.inductance || Infinity), 0);
+                const inverseCapacitive = loadData.reduce((sum, load) => sum + omega * load.capacitance, 0);
+        
+                totalResistance = 1 / (inverseResistance || Infinity);
+                totalReactanceInductive = 1 / (inverseInductive || Infinity);
+                totalReactanceCapacitive = 1 / (inverseCapacitive || Infinity);
+            }
+        
+            const totalReactance = totalReactanceInductive - totalReactanceCapacitive;
+            const totalImpedance = Math.sqrt(Math.pow(totalResistance, 2) + Math.pow(totalReactance, 2));
+            const totalCurrent = voltage / totalImpedance;
+        
+            // Menampilkan hasil
+            document.getElementById("total-impedance").innerText = `Impendansi total (Z): ${totalImpedance.toFixed(2)} Ohm`;
+            document.getElementById("total-current").innerText = `Arus total: ${totalCurrent.toFixed(2)} Ampere`;
+            nextStep(3);
+        }
+        
+        /**
+         * Menangani langkah tampilan UI.
+         * @param {number} step - Langkah yang dituju.
+         */
+        function nextStep(step) {
+            const steps = document.querySelectorAll('.floating-card');
+            steps.forEach((card, index) => {
+                if (index === step - 1) {
+                    card.classList.remove('d-none');
+                } else {
+                    card.classList.add('d-none');
+                }
+            });
+        
+            const progressBar = document.getElementById("progressBar");
+            progressBar.style.width = `${step * 25}%`;
+            progressBar.setAttribute("aria-valuenow", step * 25);
+        }
+        
+        /**
+         * Mengembalikan langkah sebelumnya.
+         */
+        function goBack() {
+            if (currentLoad > 1) {
+                currentLoad--;
+                document.getElementById("load-title").innerText = "Beban ke-" + currentLoad;
+        
+                const previousLoad = loadData[currentLoad - 1];
+                document.getElementById("resistance").value = previousLoad.resistance;
+                document.getElementById("inductance").value = previousLoad.inductance;
+                document.getElementById("capacitance").value = previousLoad.capacitance;
+            } else {
+                nextStep(1);
+            }
         }
     </script>
 </body>
